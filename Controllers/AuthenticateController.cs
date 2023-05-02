@@ -1,16 +1,22 @@
 ﻿using Azure;
+using MailKit.Security;
+using MailKit.Net.Smtp;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using MimeKit;
 using shared.DTOs;
 using shared.Entities;
 using shared.Model;
 using System.IdentityModel.Tokens.Jwt;
+using System.Net.Mail;
 using System.Security.Claims;
 using System.Text;
+using System.Net;
+using SmtpClient = System.Net.Mail.SmtpClient;
 
 namespace AuthenticationServerApi.Controllers
 {
@@ -154,7 +160,74 @@ namespace AuthenticationServerApi.Controllers
 			return await _context.UserApplications.Where(x => x.UserId == id).ToListAsync();
 		}
 
-		[HttpPost("Applications-Authenticator")]
+        [HttpPost("SendPasswordResetLink")]
+        public async Task<IActionResult> SendPasswordResetLink(PasswordResetEmail model)
+        {
+			try
+			{
+                string token = null;
+
+                var user = await _userManager.FindByEmailAsync(model.Email);
+                if (user != null)
+                {
+                    token = await _userManager.GeneratePasswordResetTokenAsync(user);
+                }
+
+                var passwordResetLink = Url.Action("ResetPassword", "Account", new { email = model.Email, token = token }, Request.Scheme);
+                var url = $"https://localhost:7253/Account/EnterPassword?email={model.Email}&token={token}"; // generate the URL for the password reset link
+                                                                                                              ///////////////////////////////////////////////////////////
+                var fromAddress = new MailAddress("kwadubanana@gmail.com", "Emmanuel Ofori");
+                var toAddress = new MailAddress(model.Email);
+                var smtpClient = new SmtpClient
+                {
+                    Host = "smtp.gmail.com",
+                    Port = 587,
+                    EnableSsl = true,
+                    DeliveryMethod = SmtpDeliveryMethod.Network,
+                    UseDefaultCredentials = false,
+                    Credentials = new NetworkCredential("kwadubanana@gmail.com", "zafnzqmqlrclmelr")
+                };
+
+				using (var message = new MailMessage(fromAddress, toAddress)
+				{
+					Subject = "Password Reset Request",
+					Body = $"<html><p>Click the following link to reset your password: {url}</p></html>",
+					IsBodyHtml=true,
+                })
+                {
+                    smtpClient.Send(message);
+                }
+
+
+                return Ok();
+            }
+			catch (Exception ex)
+			{
+
+				throw;
+			}
+			
+
+        }
+
+        [HttpPost("ResetPassword")]
+        public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
+        {
+			var user = await _userManager.FindByEmailAsync(model.Email);
+			if (user != null)
+			{
+				var result = await _userManager.ResetPasswordAsync(user, model.Token, model.Password);
+				if (result.Succeeded)
+				{
+					return Ok();
+				}
+                return BadRequest();
+            }
+            return BadRequest();
+        }
+
+
+        [HttpPost("Applications-Authenticator")]
 		public async Task<IActionResult> ApplicationAuthenticator([FromBody] AuthenticateModel model)
 		{
 			var user = await _userManager.FindByNameAsync(model.Username);
