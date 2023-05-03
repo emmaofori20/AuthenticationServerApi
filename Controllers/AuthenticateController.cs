@@ -68,7 +68,7 @@ namespace AuthenticationServerApi.Controllers
 					expirationDate = token.ValidTo,
 					roles = userRoles.ToList(),
 					Id = user.Id,
-					Username = user.UserName
+					Username = user.UserName,
 				});
 			}
 			return Unauthorized();
@@ -269,7 +269,7 @@ namespace AuthenticationServerApi.Controllers
 				{
 					if(! _userAssigned.IsAssigned) 
 					{ 
-						var removeitem = _context.UserApplications.Where(x=>x.ApplicationId == _userAssigned.ApplicationId).FirstOrDefault();
+						var removeitem = _context.UserApplications.Where(x=>x.ApplicationId == _userAssigned.ApplicationId && x.UserId == model.UserId).FirstOrDefault();
 						if (removeitem != null)
 						{
                             _context.UserApplications.Remove(removeitem);
@@ -278,14 +278,14 @@ namespace AuthenticationServerApi.Controllers
                     }
 					else
 					{
-                        var Additem = _context.UserApplications.Where(x => x.ApplicationId == _userAssigned.ApplicationId).FirstOrDefault();
+                        var Additem = _context.UserApplications.Where(x => x.ApplicationId == _userAssigned.ApplicationId && x.UserId == model.UserId).FirstOrDefault();
 						if(Additem == null)
 						{
                             _context.UserApplications.Add(new UserApplication
                             {
                                 ApplicationId = _userAssigned.ApplicationId,
                                 UserId = model.UserId,
-                                UserCredentials = "TestCredentials"
+                                UserCredentials = model.username+ _userAssigned.Name.Split(' ')[0],
                             });
                         }
 						else
